@@ -111,10 +111,37 @@ class Board:
 
         # if this is a piece move, look for the piece
         elif movestr[0] in 'RNBQK': 
-            pieceloc[0] = movestr[0] if self._turn == 'w' else movestr[0].lower()
+            piece = pieceloc[0] = movestr[0] if self._turn == 'w' else movestr[0].lower()
             
+            potential_locs = []
+            for f, row in enumerate(self._board):
+                for r, square in enumerate(row):
+                    if square == piece:
+                        potential_locs.append([ chr(r + ord('a')), str(8-f) ])
 
-        
+            print(potential_locs)
+            # there are at most 2 potential pieces, if there is only one, then make that move
+            if len(potential_locs) == 1:
+                pieceloc[1] = potential_locs[0][0]
+                pieceloc[2] = potential_locs[0][1]
+            # if both pieces can move to this square, the algebraic notation will demonstrate that
+            elif movestr[1] in 'abcdefg':
+                if potential_locs[0][0] == movestr[1]:
+                    pieceloc[1] = potential_locs[0][0]
+                    pieceloc[2] = potential_locs[0][1]
+                else:
+                    pieceloc[1] = potential_locs[1][0]
+                    pieceloc[2] = potential_locs[1][1]
+            elif movestr[1] in '12345678':
+                if potential_locs[0][1] == movestr[1]:
+                    pieceloc[1] = potential_locs[0][0]
+                    pieceloc[2] = potential_locs[0][1]
+                else:
+                    pieceloc[1] = potential_locs[1][0]
+                    pieceloc[2] = potential_locs[1][1]
+
+
+
         # otherwise look for the pawn that moved  
         else: 
             pieceloc[0] = 'P' if self._turn == 'w' else 'p'
@@ -159,8 +186,12 @@ class Board:
 # end board class
 
 b = Board()
-b._board[7] = ['R', 'x', 'x', 'x', 'K', 'B', 'N', 'R']
-b.makemove('O-O-O')
+b._board[-1][1] = 'x'
+b._board[-1][-2] = 'x'
+b._board[-3][1] = 'N'
+b._board[3][1] = 'N'
+
+b.makemove('N3d4')
 print(b.getFEN())
 
 def parsePGN(filename):
