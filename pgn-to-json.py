@@ -70,11 +70,53 @@ class Board:
         target = movestr[-2:] # all (non-castle) moves end with the target
         pieceloc = ['x', 'x', 'x'] # format: piece label, rank, file
 
+        self._enpassant = '' # unless this move is a double pawn move, there is no enpassant
+
+        castled = False
+
+        # if this is a castle, move the king and rook correspondingly and disallow castles
+        if movestr == "O-O": # kingside 
+            if self._turn == 'w':
+                if 'K' in self._castle: self._castle.remove('K')
+                if 'Q' in self._castle: self._castle.remove('Q')
+                f = 7 
+            else:
+                if 'k' in self._castle: self._castle.remove('k')
+                if 'q' in self._castle: self._castle.remove('q')
+                f = 0
+
+            self._board[f][4] = 'x'
+            self._board[f][6] = 'K' if self._turn == 'w' else 'k'
+            self._board[f][7] = 'x'
+            self._board[f][5] = 'R' if self._turn == 'w' else 'r'
+            
+            castled = True
+
+        elif movestr == "O-O-O": # queenside
+            if self._turn == 'w':
+                if 'K' in self._castle: self._castle.remove('K')
+                if 'Q' in self._castle: self._castle.remove('Q')
+                f = 7 
+            else:
+                if 'k' in self._castle: self._castle.remove('k')
+                if 'q' in self._castle: self._castle.remove('q')
+                f = 0
+
+            self._board[f][4] = 'x'
+            self._board[f][2] = 'K' if self._turn == 'w' else 'k'
+            self._board[f][0] = 'x'
+            self._board[f][3] = 'R' if self._turn == 'w' else 'r'
+            
+            castled = True
+
         # if this is a piece move, look for the piece
-        if movestr[0] in 'RNBQK': 
+        elif movestr[0] in 'RNBQK': 
             pieceloc[0] = movestr[0] if self._turn == 'w' else movestr[0].lower()
             
-        else: # otherwise look for the pawn that moved
+
+        
+        # otherwise look for the pawn that moved  
+        else: 
             pieceloc[0] = 'P' if self._turn == 'w' else 'p'
             # every pawn move starts with the rank
             pieceloc[1] = movestr[0]
@@ -104,6 +146,9 @@ class Board:
                 else:
                     print(f"invalid pawn move {''.join(target)}")
 
+        self._turn = 'w' if self._turn == 'b' else 'b'
+        if castled: return
+
         # replace the piece's starting location with a blank, replace the piece's target with the name
         target_coords = alg_to_coords(*target)
         self._board[target_coords[0]][target_coords[1]] = pieceloc[0]
@@ -111,11 +156,11 @@ class Board:
         start_coords = alg_to_coords(*pieceloc[1:])
         self._board[start_coords[0]][start_coords[1]] = 'x'
 
-        self._turn = 'w' if self._turn == 'b' else 'b'
 # end board class
 
 b = Board()
-b.makemove('e3')
+b._board[7] = ['R', 'x', 'x', 'x', 'K', 'B', 'N', 'R']
+b.makemove('O-O-O')
 print(b.getFEN())
 
 def parsePGN(filename):
