@@ -8,15 +8,15 @@ const DARK = rgbToHex('rgb(184,139,74)')
 
 
 const Board = (props) => {
-    const {width, height} = props
+    const {width, height, fen} = props
     const square = width / 8
-    const FEN = 'rnbqkbnr/pp1ppppp/2p5/3P4/1P6/6P1/P1P1PP1P/RNBQKBNR w KQkq - 0 1'
+    const FEN = fen
     const pieces = parseFENToPieceSet(FEN)
     const x = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
     const y = [1, 2, 3, 4, 5, 6, 7, 8].reverse()//to make the white pieces at the bottom
 
     return (
-        <div style={{display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center'}}>
+        <div style={{display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', margin:5}}>
             <svg width={width} height={height} style={{backgroundColor: '#0fa000'}}>
                 {y.reduce((a, c, y_ind) => {
                     return [...a, ...x.map((_x, x_ind) => {
@@ -39,11 +39,12 @@ const Board = (props) => {
 
 const Square = (props) => {
     const {x, y, color, width, label, piece} = props
+    const centering = Math.max(0, (width-45)/2)
     return (
         <g>
             <rect x={x} y={y} width={width} height={width} fill={color}/>
             {label &&<text x={x} y={y+width-5}>{label}</text>}
-            {piece &&<Piece type={piece} x={x} y={y}/>}
+            {piece &&<Piece type={piece} x={centering+x} y={centering+y}/>}
         </g>
     )
 

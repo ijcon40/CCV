@@ -24,7 +24,7 @@ const ResizeListener = (props) => {
     }, [height, ref, width])
 
     return (
-        <div ref={ref} style={{width: '100%', height: '100%'}}>{children({width, height})}< /div>
+        <div ref={ref} style={{height: '100%'}}>{children({width, height})}< /div>
     )
 
 }
