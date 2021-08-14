@@ -66,13 +66,41 @@ class Board:
         # file f is {'1', '2', '3', '4', '5', '6', '7', '8'}
         # converting {r, f} to { f -> [7, 0], r -> [0, 7] } 
         alg_to_coords = lambda r, f: (7 - (ord(f) - ord('1')) , ord(r) - ord('a'))
+      
         
-        target = movestr[-2:] # all (non-castle) moves end with the target
+        if '+' not in movestr:
+            target = movestr[-2:] # all (non-castle) moves end with the target
+        else:
+            target = movestr[-3:-1] # if this is a check, ignore the +
+
         pieceloc = ['x', 'x', 'x'] # format: piece label, rank, file
 
         self._enpassant = '' # unless this move is a double pawn move, there is no enpassant
 
         castled = False
+        
+        # if a piece is moving to any of these squares, then it's removing the castle from that rook
+        if 'K' in self._castle and target[1:] == ['h', '1']:
+            self._castle.remove('K')
+        elif 'Q' in self._castle and target[1:] == ['a', '1']:
+            self._castle.remove('Q')
+        elif 'k' in self._castle and target[1:] == ['h', '8']:
+            self._castle.remove('k')
+        elif 'q' in self._castle and target[1:] == ['a', '8']:
+            self._castle.remove('q')
+
+
+        # if this is a king move, get rid of the potential to castle 
+        if movestr[0] == 'K':
+            if self._turn == 'w' and 'K' in self._castle:
+                self._castle.remove('K')
+            if self._turn == 'w' and 'Q' in self._castle:
+                self._castle.remove('Q')
+            if self._turn == 'b' and 'k' in self._castle:
+                self._castle.remove('k')
+            if self._turn == 'b' and 'q' in self._castle:
+                self._castle.remove('q')
+
 
         # if this is a castle, move the king and rook correspondingly and disallow castles
         if movestr == "O-O": # kingside 
@@ -111,46 +139,106 @@ class Board:
 
         # if this is a piece move, look for the piece
         elif movestr[0] in 'RNBQK': 
-            piece = pieceloc[0] = movestr[0] if self._turn == 'w' else movestr[0].lower()
+            distance = lambda a, b: abs(ord(a) - ord(b))
             
+            piece = pieceloc[0] = movestr[0] if self._turn == 'w' else movestr[0].lower()
             potential_locs = []
             for f, row in enumerate(self._board):
                 for r, square in enumerate(row):
                     if square == piece:
                         potential_locs.append([ chr(r + ord('a')), str(8-f) ])
 
-            print(potential_locs)
-            # there are at most 2 potential pieces, if there is only one, then make that move
+            # if there is only one piece with the right name and color, 
+            # then we know it must be the one that made the move
             if len(potential_locs) == 1:
                 pieceloc[1] = potential_locs[0][0]
                 pieceloc[2] = potential_locs[0][1]
-            # if both pieces can move to this square, the algebraic notation will demonstrate that
-            elif movestr[1] in 'abcdefg':
-                if potential_locs[0][0] == movestr[1]:
-                    pieceloc[1] = potential_locs[0][0]
-                    pieceloc[2] = potential_locs[0][1]
-                else:
-                    pieceloc[1] = potential_locs[1][0]
-                    pieceloc[2] = potential_locs[1][1]
+            
+            # at this point, king moves are handled, since there can only be one king of any color
+            # queen moves are not because of the potential for promotions
+
+            # if all pieces can move to this square, the algebraic notation will demonstrate that
+            elif movestr[1] in 'abcdefg' and movestr[2] in 'abcdefgx':
+                for i in range(len(potential_locs)):
+                    if potential_locs[i][0] == movestr[1]:
+                        pieceloc[1] = potential_locs[i][0]
+                        pieceloc[2] = potential_locs[i][1]
+                        break
             elif movestr[1] in '12345678':
-                if potential_locs[0][1] == movestr[1]:
-                    pieceloc[1] = potential_locs[0][0]
-                    pieceloc[2] = potential_locs[0][1]
-                else:
-                    pieceloc[1] = potential_locs[1][0]
-                    pieceloc[2] = potential_locs[1][1]
+                for i in range(len(potential_locs)):
+                    if potential_locs[i][1] == movestr[1]:
+                        pieceloc[1] = potential_locs[i][0]
+                        pieceloc[2] = potential_locs[i][1]
+                        break
 
+            # now, using the logic of the piece, look for the only one that can have moved to the target
 
+            # rook - for one of the pieces, either the rank is the same, or the file is
+            elif piece in 'rR': 
+                for i in range(len(potential_locs)):
+                    if (potential_locs[i][0] == target[0] and potential_locs[i][1] != target[1]) \
+                      or (potential_locs[i][0] != target[0] and potential_locs[i][1] == target[1]):
+                        
+                        # TODO: account for obstructions
 
-        # otherwise look for the pawn that moved  
+                        pieceloc[1] = potential_locs[i][0]
+                        pieceloc[2] = potential_locs[i][1]
+                        break
+
+                # check if this rook move removes a potential castle
+                if 'K' in self._castle and pieceloc[1:] == ['h', '1']:
+                    self._castle.remove('K')
+                elif 'Q' in self._castle and pieceloc[1:] == ['a', '1']:
+                    self._castle.remove('Q')
+                elif 'k' in self._castle and pieceloc[1:] == ['h', '8']:
+                    self._castle.remove('k')
+                elif 'q' in self._castle and pieceloc[1:] == ['a', '8']:
+                    self._castle.remove('q')
+
+            # bishop - for one of the pieces, the absolute distance between the rook and file are the same
+            elif piece in 'bB': 
+                for i in range(len(potential_locs)):
+                    if distance(potential_locs[i][0], target[0]) == distance(potential_locs[i][1], target[1]):
+                        # TODO: account for obstructions
+                        pieceloc[1] = potential_locs[i][0]
+                        pieceloc[2] = potential_locs[i][1]
+                        break
+
+            # knight - for one of the pieces, the distance on one axis is 1, the distance on the other is 2
+            elif piece in 'nN':
+                for i in range(len(potential_locs)):
+                    rankdist = distance(potential_locs[i][0], target[0])
+                    filedist = distance(potential_locs[i][1], target[1])
+
+                    if (rankdist == 1 and filedist == 2) or (rankdist == 2 and filedist == 1):
+                        pieceloc[1] = potential_locs[i][0]
+                        pieceloc[2] = potential_locs[i][1]
+                        break
+            
+            # queen - for one of the pieces, the distance on either axis is the same, or one of them is 0
+            else:
+                for i in range(len(potential_locs)):
+                    # TODO: account for obstructions
+                    rankdist = distance(potential_locs[i][0], target[0])
+                    filedist = distance(potential_locs[i][1], target[1])
+
+                    if rankdist == filedist or rankdist == 0 or filedist == 0:
+                        pieceloc[1] = potential_locs[i][0]
+                        pieceloc[2] = potential_locs[i][1]
+                        break
+
+        # at this point, we know it was a pawn move
+        # look for the pawn that moved and make it
+
         else: 
             pieceloc[0] = 'P' if self._turn == 'w' else 'p'
             # every pawn move starts with the rank
             pieceloc[1] = movestr[0]
 
-            if movestr[1] == 'x': # pawn capture pawn
+            if movestr[1] == 'x': # pawn capture 
                 # if the turn is white, move down a file, otherwise move up a file
-                pieceloc[2] = chr(ord(movestr[-1]) - (1 if self._turn == 'w' else -1))
+                
+                pieceloc[2] = chr(ord(movestr[3]) - (1 if self._turn == 'w' else -1))
             # otherwise, normal pawn move
             elif self._turn == 'w':
                 coords = alg_to_coords(*target)
@@ -185,15 +273,6 @@ class Board:
 
 # end board class
 
-b = Board()
-b._board[-1][1] = 'x'
-b._board[-1][-2] = 'x'
-b._board[-3][1] = 'N'
-b._board[3][1] = 'N'
-
-b.makemove('N3d4')
-print(b.getFEN())
-
 def parsePGN(filename):
     f = open(filename, 'r')
 
@@ -205,10 +284,34 @@ def parsePGN(filename):
         if len(line) >= 2 and line[:2] == '1.':
             in_game = True         
         
-        # if we are presently in game, make the moves, parse them, add them to the json
+        if line[0] == '[':
+            continue
 
+        # if we are presently in game, make the moves, parse them, add them to the json
+        temp = line.split('.')    
+        moves = []
+        for tok in temp:
+            move = tok.split(' ')
+            if len(move) == 3: # of the form 'white black next_turn'
+                moves.extend(move[:2])
+            elif len(move) == 2: # of the form 'white black\n'
+                moves.append(move[0])
+                moves.append(move[1][:-1])
+            else:
+                continue
+       
+        for move in moves:
+            if len(move) >= 2:
+                curr_board.makemove(move)
 
         # if the end of this line contains an 'end of game marker', i.e. 0-1, 1/2-1/2, 1-0
         # then we have finished parsing the game, and we can continue looking for the next one
-        if line[-1] in ('0-1', '1/2-1/2', '1-0'):
+        if line.split(' ')[-1] in ('0-1\n', '1/2-1/2\n', '1-0\n'):
+            print(curr_board.getFEN())
+            curr_board = Board()
             in_game = False
+
+    f.close()
+
+
+parsePGN('raw-data/Bucharest2021.pgn')
