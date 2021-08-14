@@ -1,6 +1,8 @@
 import os
 from sys import argv
 
+
+
 # loop through all the .pgn files in this directory
 data_dir = 'raw-data'
 
@@ -30,6 +32,28 @@ class Board:
         self._castle = ['K', 'Q', 'k', 'q']
         self._enpassant = ''
 
+    
+    # given two locations as strings in algebraic notation,
+    # determine if there are pieces obstructing the two
+    # NOTE: the given locations must be in a straight line from one another, or this doesn't make sense
+    def is_obstructed(self, pos1, pos2):
+        convert_to_xy = lambda pos: (7 - (ord(pos[1]) - ord('1')), ord(pos[0]) - ord('a'))
+        
+        x1, y1 = convert_to_xy(pos1)
+        x2, y2 = convert_to_xy(pos2)
+
+        x_change = 1 if x1 < x2 else (0 if x1 == x2 else -1)
+        y_change = 1 if y1 < y2 else (0 if y1 == y2 else -1)
+
+        s,t = x1 + x_change, y1 + y_change
+        while s != x2 or t != y2:
+            if self._board[s][t] != 'x':
+                return True
+            
+            s += x_change
+            t += y_change
+        
+        return False
 
     # translate the board state to FEN
     def getFEN(self):
@@ -75,7 +99,7 @@ class Board:
 
         pieceloc = ['x', 'x', 'x'] # format: piece label, rank, file
 
-        self._enpassant = '' # unless this move is a double pawn move, there is no enpassant
+        remove_enpassant = True # unless this move is a double pawn move, there is no enpassant
 
         castled = False
         
@@ -158,7 +182,7 @@ class Board:
             # queen moves are not because of the potential for promotions
 
             # if all pieces can move to this square, the algebraic notation will demonstrate that
-            elif movestr[1] in 'abcdefg' and movestr[2] in 'abcdefgx':
+            elif movestr[1] in 'abcdefgh' and movestr[2] in 'abcdefghx':
                 for i in range(len(potential_locs)):
                     if potential_locs[i][0] == movestr[1]:
                         pieceloc[1] = potential_locs[i][0]
@@ -179,11 +203,10 @@ class Board:
                     if (potential_locs[i][0] == target[0] and potential_locs[i][1] != target[1]) \
                       or (potential_locs[i][0] != target[0] and potential_locs[i][1] == target[1]):
                         
-                        # TODO: account for obstructions
-
-                        pieceloc[1] = potential_locs[i][0]
-                        pieceloc[2] = potential_locs[i][1]
-                        break
+                        if not self.is_obstructed( potential_locs[i], target ):
+                            pieceloc[1] = potential_locs[i][0]
+                            pieceloc[2] = potential_locs[i][1]
+                            break
 
                 # check if this rook move removes a potential castle
                 if 'K' in self._castle and pieceloc[1:] == ['h', '1']:
@@ -198,8 +221,8 @@ class Board:
             # bishop - for one of the pieces, the absolute distance between the rook and file are the same
             elif piece in 'bB': 
                 for i in range(len(potential_locs)):
-                    if distance(potential_locs[i][0], target[0]) == distance(potential_locs[i][1], target[1]):
-                        # TODO: account for obstructions
+                    if distance(potential_locs[i][0], target[0]) == distance(potential_locs[i][1], target[1]) \
+                      and not self.is_obstructed( potential_locs[i], target ):
                         pieceloc[1] = potential_locs[i][0]
                         pieceloc[2] = potential_locs[i][1]
                         break
@@ -218,11 +241,11 @@ class Board:
             # queen - for one of the pieces, the distance on either axis is the same, or one of them is 0
             else:
                 for i in range(len(potential_locs)):
-                    # TODO: account for obstructions
                     rankdist = distance(potential_locs[i][0], target[0])
                     filedist = distance(potential_locs[i][1], target[1])
 
-                    if rankdist == filedist or rankdist == 0 or filedist == 0:
+                    if (rankdist == filedist or rankdist == 0 or filedist == 0) \
+                      and not self.is_obstructed( potential_locs[i], target ):
                         pieceloc[1] = potential_locs[i][0]
                         pieceloc[2] = potential_locs[i][1]
                         break
@@ -239,6 +262,11 @@ class Board:
                 # if the turn is white, move down a file, otherwise move up a file
                 
                 pieceloc[2] = chr(ord(movestr[3]) - (1 if self._turn == 'w' else -1))
+            
+                # check if this was an enpassant capture if possible
+                if ''.join(target) == self._enpassant:
+                    self._board[7 - (ord(self._enpassant[1]) - ord('1')) + (1 if self._turn == 'w' else -1)][ord(self._enpassant[0]) - ord('a')] = 'x'
+
             # otherwise, normal pawn move
             elif self._turn == 'w':
                 coords = alg_to_coords(*target)
@@ -248,6 +276,7 @@ class Board:
                 elif self._board[coords[0] + 2][coords[1]] == 'P':
                     pieceloc[2] = chr(ord(target[1]) - 2)
                     self._enpassant = str(target[0]) + chr(ord(target[1]) - 1)
+                    remove_enpassant = False
                 else:
                     print(f"invalid pawn move {''.join(target)}")
             else: # normal black pawn move
@@ -257,11 +286,14 @@ class Board:
                     pieceloc[2] = chr(ord(target[1]) + 1)
                 elif self._board[coords[0] - 2][coords[1]] == 'p':
                     pieceloc[2] = chr(ord(target[1]) + 2)
-                    self._enpassant = str(target[0]) + chr(ord(target[1]) - 1)
+                    self._enpassant = str(target[0]) + chr(ord(target[1]) + 1)
+                    remove_enpassant = False
                 else:
                     print(f"invalid pawn move {''.join(target)}")
 
         self._turn = 'w' if self._turn == 'b' else 'b'
+        if remove_enpassant:
+            self._enpassant = ''
         if castled: return
 
         # replace the piece's starting location with a blank, replace the piece's target with the name
@@ -272,6 +304,13 @@ class Board:
         self._board[start_coords[0]][start_coords[1]] = 'x'
 
 # end board class
+
+"""
+b = Board()
+b._board[-1] = ['R', 'N', 'B', 'x', 'x', 'x', 'x', 'R']
+b.makemove('Rd1')
+print(b.getFEN())
+"""
 
 def parsePGN(filename):
     f = open(filename, 'r')
@@ -307,7 +346,6 @@ def parsePGN(filename):
         # if the end of this line contains an 'end of game marker', i.e. 0-1, 1/2-1/2, 1-0
         # then we have finished parsing the game, and we can continue looking for the next one
         if line.split(' ')[-1] in ('0-1\n', '1/2-1/2\n', '1-0\n'):
-            print(curr_board.getFEN())
             curr_board = Board()
             in_game = False
 
