@@ -3,7 +3,7 @@ import ResizeListener from "./components/resizeListener/ResizeListener";
 import Board from "./components/board/Board";
 import Paper from '@material-ui/core/Paper';
 import {makeStyles, TextField} from "@material-ui/core";
-
+import axios from "axios";
 const useStyles = makeStyles(theme => ({
     paper: {
         margin: 5,
@@ -22,11 +22,34 @@ const useStyles = makeStyles(theme => ({
     }
 }))
 
+const getData = async (fen) =>{
+//https://comp-chess-viz.azurewebsites.net/CCV?state=rnbqkbnr%2Fpppppppp%2F8%2F8%2F8%2F8%2FPPPPPPPP%2FRNBQKBNR+w+KQkq+-
+    const params = {state:fen}
+    const res = await axios.get('https://comp-chess-viz.azurewebsites.net/CCV', { params });
+    console.log(res)
+    return res
+
+}
+
+const reduceFen = (fen)=>{
+    return fen.split(' ').slice(0, 4).join(' ')
+}
+
 
 function App() {
     const classes = useStyles()
     const default_fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
     const [value, setValue] = React.useState(default_fen);
+    const [data, setData] = React.useState(null)
+    //gotta slice the fen to match
+
+    React.useEffect(()=>{
+        const call = async ()=>{
+            const data = await getData(reduceFen(value))
+            setData(data)
+        }
+        call()
+    }, [value]) //on value change recall the api call
 
     const handleChange = (event) => {
         if(event.target.value===''){
