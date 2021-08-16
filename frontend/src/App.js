@@ -2,8 +2,9 @@ import React from 'react'
 import ResizeListener from "./components/resizeListener/ResizeListener";
 import Board from "./components/board/Board";
 import Table from './components/history/Table'
+import Moves from './components/moves/Moves'
 import Paper from '@material-ui/core/Paper';
-import {makeStyles, TextField} from "@material-ui/core";
+import {makeStyles, TextField, Tooltip, Typography} from "@material-ui/core";
 import IconButton from '@material-ui/core/IconButton';
 import RotateLeftIcon from '@material-ui/icons/RotateLeft';
 import axios from "axios";
@@ -23,6 +24,12 @@ const useStyles = makeStyles(theme => ({
         flexDirection: 'column',
         alignItems: 'center',
         paddingTop: 100
+    },
+    buttonContainer: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: 5
     }
 }))
 
@@ -51,6 +58,7 @@ function App() {
     const classes = useStyles()
     const default_fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
     const [value, setValue] = React.useState(default_fen);
+    const [stack, setStack] = React.useState([{move:'...', fen:default_fen}])//push the piece position and corresponding fen here
     const [data, setData] = React.useState(null)
 
     //gotta slice the fen to match
@@ -65,6 +73,18 @@ function App() {
 
     if (!data) {
         return null
+    }
+
+    const addToMoveStack=(move)=>{
+        //this will need to take the endPos and the fen of the state in that move, start by pushing the original
+        setStack([...stack, move])
+    }
+    const popFromStack=(move)=>{
+        const index = stack.findIndex(a=>a.move===move.move&&a.fen===move.fen)
+        if(index!==-1){
+            setStack([...stack.slice(0, index+1)])
+            setValue(move.fen)
+        }
     }
 
     const handleChange = (event) => {
@@ -106,14 +126,22 @@ function App() {
                                                 variant="outlined"
                                                 onChange={handleChange}
                                                 fullWidth
+                                                value={value}
                                             />
-                                            <IconButton color="primary" aria-label="upload picture" component="span"
-                                                        onClick={() => setValue(default_fen)}>
-                                                <RotateLeftIcon/>
-                                            </IconButton>
+
+                                            <div className={classes.buttonContainer}>
+                                                <Tooltip title={'Reset to starting position'} placement={'top'}>
+                                                    <IconButton color="primary" aria-label="upload picture"
+                                                                component="span"
+                                                                onClick={() => setValue(default_fen)}>
+                                                        <RotateLeftIcon/>
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </div>
                                         </div>
+                                        <Moves stack={stack} pop={popFromStack}/>
                                         <Board width={remainder} height={remainder} fen={value} data={data}
-                                               updateFen={setValue}/>
+                                               updateFen={setValue} addMove={addToMoveStack}/>
                                         <Table data={data} width={width}/>
                                     </Paper>
                                 </div>)
