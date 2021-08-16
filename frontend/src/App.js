@@ -1,4 +1,5 @@
 import React from 'react'
+import {useHistory} from "react-router-dom"
 import ResizeListener from "./components/resizeListener/ResizeListener";
 import Board from "./components/board/Board";
 import Table from './components/history/Table'
@@ -63,9 +64,13 @@ const reduceFen = (fen) => {
 
 function App() {
     const classes = useStyles()
+    const history = useHistory()
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const fen = urlParams.get('fen');
     const default_fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
-    const [value, setValue] = React.useState(default_fen);
-    const [stack, setStack] = React.useState([{move: '...', fen: default_fen}])//push the piece position and corresponding fen here
+    const [value, setValue] = React.useState(fen||default_fen);
+    const [stack, setStack] = React.useState([{move: '...', fen: fen||default_fen}])//push the piece position and corresponding fen here
     const [data, setData] = React.useState(null)
 
     //gotta slice the fen to match
@@ -98,6 +103,9 @@ function App() {
                     }
                 }
             )
+            const raw_params = new URLSearchParams()
+            raw_params.append('fen', event.target.value)
+            history.push({search: raw_params.toString()})
             setValue(event.target.value);
             setStack([{move: '...', fen: event.target.value}])
         } catch (error) {
@@ -117,6 +125,13 @@ function App() {
             setStack([...stack.slice(0, index + 1)])
             setValue(move.fen)
         }
+    }
+
+    const setQuery = (value) => {
+        const raw_params = new URLSearchParams()
+        raw_params.append('fen', value)
+        history.push({search: raw_params.toString()})
+        setValue(value);
     }
 
 
@@ -167,7 +182,7 @@ function App() {
                                         </div>
                                         <Moves stack={stack} pop={popFromStack}/>
                                         <Board width={remainder} height={remainder} fen={value} data={data}
-                                               updateFen={setValue} addMove={addToMoveStack}/>
+                                               updateFen={setQuery} addMove={addToMoveStack}/>
                                         <Table data={data} width={width}/>
                                     </Paper>
                                 </div>)
