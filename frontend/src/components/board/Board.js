@@ -5,10 +5,46 @@ import Piece from "./Piece";
 
 const LIGHT = rgbToHex('rgb(227,193,111)')
 const DARK = rgbToHex('rgb(184,139,74)')
+const SOURCE = rgbToHex('rgb(34,139,34)')
+const HOVERED = rgbToHex('rgb(87,146,86)')
+const POSSIBLE = rgbToHex('rgb(165, 159, 199)')
 
 
 const Board = (props) => {
-    const {width, height, fen} = props
+    const {width, height, fen, data, updateFen} = props
+    const [selected, setSelected] = React.useState('')
+    const {recommendedMoves} = data
+    const end_mapping = {}//take the data and reformat it to start-> {end:, fen:}
+    //generate the end mapping for all moves
+    recommendedMoves.forEach(a=>{
+        if(!(a.startPos in end_mapping)){
+            end_mapping[a.startPos]=[]
+        }
+        end_mapping[a.startPos].push({end:a.endPos, fen:a.resultingFEN})
+    })
+    //endPos: "d4"
+    // resultingFEN: "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq -"
+    // startPos: "d2"
+
+    const updateSelected = (uci)=>{
+        //check if the next one is in the end mapping
+        if(!end_mapping[selected]){
+            setSelected(uci)
+        }
+        const ucis = end_mapping[selected]?.map(a=>a.end)
+        const has = ucis&&ucis.length>0&&ucis.indexOf(uci)!==-1
+        if(has) {
+            updateFen(end_mapping[selected].find(a=>a.end===uci).fen)
+            setSelected('')
+        }
+        else{
+            setSelected(uci)//use this as the start for the start
+        }
+
+    }
+    //make sure match the index
+
+
     const square = width / 8
     const FEN = fen
     const pieces = parseFENToPieceSet(FEN)
@@ -26,9 +62,14 @@ const Board = (props) => {
                         if(pieces[_x+c]){
                             piece = pieces[_x+c]
                         }
+                        const square_label = _x+c
+                        const hasMove = recommendedMoves.map(a=>a.startPos).indexOf(square_label)!==-1
+                        const show_label = (x_ind===0&&c)||(y_ind===7&&_x)
+                        const start=square_label===selected
+                        const target = end_mapping[selected]&&end_mapping[selected].map(a=>a.end).indexOf(square_label)!==-1
                         return (
-                            <Square x={square * x_ind} y={square * y_ind} color={isDark ? DARK : LIGHT} width={square}
-                                    label={(x_ind===0&&c)||(y_ind===7&&_x)} key={y_ind * 8 + x_ind} piece={piece}/>)
+                            <Square x={square * x_ind} y={square * y_ind} color={start?SOURCE:hasMove?POSSIBLE:isDark ? DARK : LIGHT} width={square}
+                                    label={square_label} show_label = {show_label} key={y_ind * 8 + x_ind} piece={piece} target={target} setClicked={updateSelected}/>)
                     })]
                 }, [])}
 
@@ -38,13 +79,14 @@ const Board = (props) => {
 }
 
 const Square = (props) => {
-    const {x, y, color, width, label, piece} = props
+    const {x, y, color, width, label, piece, target, setClicked, show_label} = props
     const centering = Math.max(0, (width-45)/2)
     return (
-        <g>
+        <g onClick={()=>{setClicked(label)}}>
             <rect x={x} y={y} width={width} height={width} fill={color}/>
-            {label &&<text x={x} y={y+width-5}>{label}</text>}
+            {show_label &&<text x={x} y={y+width-5}>{show_label}</text>}
             {piece &&<Piece type={piece} x={centering+x} y={centering+y}/>}
+            {target && <circle cx={x+width/2} cy={y+width/2} r={45/4} fill={HOVERED}/>}
         </g>
     )
 
