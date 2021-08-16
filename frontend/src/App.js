@@ -4,10 +4,13 @@ import Board from "./components/board/Board";
 import Table from './components/history/Table'
 import Moves from './components/moves/Moves'
 import Paper from '@material-ui/core/Paper';
-import {makeStyles, TextField, Tooltip, Typography} from "@material-ui/core";
+import {makeStyles, TextField, Tooltip} from "@material-ui/core";
 import IconButton from '@material-ui/core/IconButton';
 import RotateLeftIcon from '@material-ui/icons/RotateLeft';
 import axios from "axios";
+import {parseFENToPieceSet} from "./components/board/Utils";
+import * as pieces from "./components/board/pieces"
+
 
 const useStyles = makeStyles(theme => ({
     paper: {
@@ -43,8 +46,12 @@ const getData = async (fen) => {
         },
         params: {state: fen}
     }
-
-    const res = await axios.get('https://comp-chess-viz.azurewebsites.net/CCV', config);
+    let res = null
+    try {
+        res = await axios.get('https://comp-chess-viz.azurewebsites.net/CCV', config);
+    } catch (err) {
+        res = {data: {recommendedMoves: [], relatedMatches: []}}
+    }
     return res.data
 
 }
@@ -58,7 +65,7 @@ function App() {
     const classes = useStyles()
     const default_fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
     const [value, setValue] = React.useState(default_fen);
-    const [stack, setStack] = React.useState([{move:'...', fen:default_fen}])//push the piece position and corresponding fen here
+    const [stack, setStack] = React.useState([{move: '...', fen: default_fen}])//push the piece position and corresponding fen here
     const [data, setData] = React.useState(null)
 
     //gotta slice the fen to match
@@ -75,25 +82,44 @@ function App() {
         return null
     }
 
-    const addToMoveStack=(move)=>{
+    const setFENandStack = (event) => {
+        if (event.target.value === '') {
+            setValue(default_fen)
+            setStack([{move: '...', fen: default_fen}])
+            return;
+        }
+        try {
+            const test = parseFENToPieceSet(event.target.value)
+            //also need to check if any of the pieces don't exist in our inputs
+            const set = Object.keys(test).map(a => test[a])
+            set.forEach(piece => {
+                    if (!(piece in pieces)) {
+                        throw 'Invalid FEN notation'
+                    }
+                }
+            )
+            setValue(event.target.value);
+            setStack([{move: '...', fen: event.target.value}])
+        } catch (error) {
+            alert('Caught invalid FEN Code')
+        }
+
+
+    }
+
+    const addToMoveStack = (move) => {
         //this will need to take the endPos and the fen of the state in that move, start by pushing the original
         setStack([...stack, move])
     }
-    const popFromStack=(move)=>{
-        const index = stack.findIndex(a=>a.move===move.move&&a.fen===move.fen)
-        if(index!==-1){
-            setStack([...stack.slice(0, index+1)])
+    const popFromStack = (move) => {
+        const index = stack.findIndex(a => a.move === move.move && a.fen === move.fen)
+        if (index !== -1) {
+            setStack([...stack.slice(0, index + 1)])
             setValue(move.fen)
         }
     }
 
-    const handleChange = (event) => {
-        if (event.target.value === '') {
-            setValue(default_fen)
-            return;
-        }
-        setValue(event.target.value);
-    };
+
     return (
         <div>
             <div>
@@ -124,7 +150,7 @@ function App() {
                                                 label="FEN Code"
                                                 defaultValue={value}
                                                 variant="outlined"
-                                                onChange={handleChange}
+                                                onChange={setFENandStack}
                                                 fullWidth
                                                 value={value}
                                             />

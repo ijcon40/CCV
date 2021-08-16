@@ -2,13 +2,20 @@ import React from 'react'
 import {makeStyles, rgbToHex, Typography} from "@material-ui/core";
 import {parseFENToPieceSet} from "./Utils";
 import Piece from "./Piece";
-import InfoIcon from '@material-ui/icons/Info';
+import InfoOutlinedIcon from '@material-ui/icons/InfoOutlined';
 
 const useStyles = makeStyles(theme => ({
     notification: {
-        backgroundColor: 'blue',
+        backgroundColor: '#B3E5FC',
+        paddingLeft:5,
+        paddingRight:5,
+        paddingTop:10,
+        paddingBottom:10,
         display: 'flex',
-        flexDirection: 'row'
+        flexDirection: 'row',
+        alignItems:'center',
+        width:'100%',
+        margin:5
     }
 }))
 
@@ -61,10 +68,10 @@ const Board = (props) => {
     const pieces = parseFENToPieceSet(FEN)
     const x = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
     const y = [1, 2, 3, 4, 5, 6, 7, 8].reverse()//to make the white pieces at the bottom
-    const hasMoves = !(end_mapping[selected]?.map(a => a.end).length === 0)
+    const hasMoves = !(end_mapping[selected]?.map(a => a.end).length === 0||recommendedMoves.length===0)
 
     return (
-        <div style={{display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', margin: 5}}>
+        <div style={{display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', margin: 5}}>
             <svg width={width} height={height} style={{backgroundColor: '#0fa000'}}>
                 {y.reduce((a, c, y_ind) => {
                     return [...a, ...x.map((_x, x_ind) => {
@@ -90,9 +97,9 @@ const Board = (props) => {
             </svg>
             {!hasMoves && (
                 <div className={classes.notification}>
-                    <InfoIcon/>
-                    <Typography variant={'h6'}>
-                        No Competitively Moves played from this Position
+                    <InfoOutlinedIcon/>
+                    <Typography variant={'h6'} style={{paddingLeft:3}}>
+                        No competitively played moves from this position
                     </Typography>
                 </div>
             )}

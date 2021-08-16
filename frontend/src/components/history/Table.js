@@ -9,7 +9,8 @@ import ListSubheader from '@material-ui/core/ListSubheader';
 
 const Table = (props) => {
     const {data, width} = props
-    const {relatedMatches} = data
+    let {relatedMatches} = data
+    relatedMatches = Array.from(new Set([...relatedMatches]))
     //13: {title: "Superbet Classic 2021 2021.06.08", playerA: "Vachier Lagrave,M", playerB: "Lupulescu,C"}
     const useStyles = makeStyles((theme) => ({
         container: {
