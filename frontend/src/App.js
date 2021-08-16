@@ -14,7 +14,7 @@ const useStyles = makeStyles(theme => ({
         paddingBottom: 5
     },
     board: {
-        maxWidth: '40vw',
+        maxWidth: '60vw',
         display: 'flex',
         flexGrow: 1
     },
