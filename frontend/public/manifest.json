@@ -2,9 +2,9 @@
   "short_name": "CCV",
   "name": "Competitive Chess Visualizer",
   "icons": [
-        {
-      "src": "secondary.ico",
-      "sizes": "192x192",
+   {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
       "type": "image/x-icon"
     },
     {
