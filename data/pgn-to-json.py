@@ -1,18 +1,48 @@
 import os
 from sys import argv
 
+import json
+import re
+'''
+the format of the json is as follows
 
+{
+    <FEN string 1>:
+    {
+        count: <number of times the board has shown up>,
+        moves: // the set of boards that have followed from this
+        [
+            <FEN string>,
+            <FEN string>,
+            ...
+        ],
+        games: // the set of games (in some string format) that the board was played
+        [
+            <descriptive game string>,
+            <descriptive game string>,
+            ...
+        ]
+    }
+    <FEN string 2>:
+    {
+        ...
+    }
+    ...
+}
+            
+'''
 
 # loop through all the .pgn files in this directory
 data_dir = 'raw-data'
 
 # output/update data 
-output_file = 'move-data.json'
+output_filename = 'move-data.json'
 
-# command line argument to decide if we overwrite or update the existing data (if it exists)
-if len(argv) > 1 and argv[1] == '-overwrite':
-    if os.path.isfile(output_file):
-        os.remove(output_file)
+# this probably is not only not necessary but actively wrong
+if os.path.isfile(output_filename):
+    os.remove(output_filename)
+
+outfile = open(output_filename, 'w')
 
 
 class Board:
@@ -55,6 +85,7 @@ class Board:
         
         return False
 
+
     # translate the board state to FEN
     def getFEN(self):
         FEN = ''
@@ -81,6 +112,21 @@ class Board:
         return FEN        
 
 
+    # prints the board in a human-readable format (for debugging)
+    def prettyprint(self):
+        row_divider = ('+-'*8 + '+')
+        encase = lambda strlist, div: div + (div.join(strlist)) + div 
+        
+        cleaned_board = [[ch if ch != 'x' else ' ' for ch in row] for row in self._board]
+        
+        print('  ' + row_divider)
+        for i, row in enumerate(cleaned_board):
+            print(str(8 - i), end=' ')
+            print(encase(row, '|'))
+            print('  ' + row_divider)
+        print('   a b c d e f g h')
+
+
     # Given a halfmove in algebraic notation (devoid of context) alter the board state 
     # movestr does not contain the move number or marking for what turn it is, this is held in the board class
     # movestr is assumed to be valid. if it isn't, and is impossible to interpret (no piece able to make the given move)
@@ -92,17 +138,21 @@ class Board:
         alg_to_coords = lambda r, f: (7 - (ord(f) - ord('1')) , ord(r) - ord('a'))
       
         
-        if '+' not in movestr:
+        if '+' not in movestr and '#' not in movestr:
             target = movestr[-2:] # all (non-castle) moves end with the target
         else:
             target = movestr[-3:-1] # if this is a check, ignore the +
+    
+
 
         pieceloc = ['x', 'x', 'x'] # format: piece label, rank, file
 
         remove_enpassant = True # unless this move is a double pawn move, there is no enpassant
 
         castled = False
-        
+        promoted = False
+
+
         # if a piece is moving to any of these squares, then it's removing the castle from that rook
         if 'K' in self._castle and target[1:] == ['h', '1']:
             self._castle.remove('K')
@@ -126,8 +176,13 @@ class Board:
                 self._castle.remove('q')
 
 
+        # if this is a promotion
+        if '=' in movestr:
+            r, f = alg_to_coords(*movestr[:2])
+            self._board[r][f] = movestr[-1] if self._turn == 'w' else movestr[-1].lower()
+            promoted = True
         # if this is a castle, move the king and rook correspondingly and disallow castles
-        if movestr == "O-O": # kingside 
+        elif movestr == "O-O": # kingside 
             if self._turn == 'w':
                 if 'K' in self._castle: self._castle.remove('K')
                 if 'Q' in self._castle: self._castle.remove('Q')
@@ -294,7 +349,8 @@ class Board:
         self._turn = 'w' if self._turn == 'b' else 'b'
         if remove_enpassant:
             self._enpassant = ''
-        if castled: return
+
+        if castled or promoted: return
 
         # replace the piece's starting location with a blank, replace the piece's target with the name
         target_coords = alg_to_coords(*target)
@@ -312,44 +368,149 @@ b.makemove('Rd1')
 print(b.getFEN())
 """
 
-def parsePGN(filename):
+output_data = {}
+
+def addDatum(FEN):
+    if FEN in output_data:
+        return
+
+    output_data[FEN] = { \
+        'count': 1,  \
+        'moves': [], \
+        'games': []  \
+    }
+
+def visitBoard(currFEN, game, prevFEN = None):
+    if currFEN not in output_data:
+        addDatum(currFEN)
+    else:
+        output_data[currFEN]['count'] += 1
+
+    output_data[currFEN]['games'].append(game)
+
+    if prevFEN != None:
+        output_data[prevFEN]['moves'].append(currFEN)
+
+
+
+
+def parsePGN(filename, ):
     f = open(filename, 'r')
 
-    in_game = False
     curr_board = Board()
 
-    for line in f:
-        # if this line marks the beginning of a game, enter in_game state
-        if len(line) >= 2 and line[:2] == '1.':
-            in_game = True         
+    # every iteration of this loop will either be a blank line or encapsulate a full game, assuming each game is of the form
+    #
+    # [Title "Data"]
+    # [Title "Data"]
+    #       .
+    #       .
+    #       .
+    # 
+    # < Game in PGN format
+    # Broken by any amount 
+    # of line breaks >
+    # 
+
+
+    while (line := f.readline()) != '':
+        continue_writing = True
         
-        if line[0] == '[':
+        if len(line) < 3:
             continue
+        
+        # given all the game data we have, form a string that represents the game
+        # STRING FORMAT: LOCATION, EVENT, WHITE, BLACK
+        def get_title(string):
+            # assumes everything before ' "' is the title, everything after is the data
+            return string[1 : string.index(' "')]
+    
+        def get_quoted(string):
+            # finds the part of the string in quotes
+            firstquot = string.index('"')
+            secondquot = string.index('"', firstquot+1)
+            return string[firstquot+1 : secondquot]
+        
 
-        # if we are presently in game, make the moves, parse them, add them to the json
-        temp = line.split('.')    
-        moves = []
-        for tok in temp:
-            move = tok.split(' ')
-            if len(move) == 3: # of the form 'white black next_turn'
-                moves.extend(move[:2])
-            elif len(move) == 2: # of the form 'white black\n'
-                moves.append(move[0])
-                moves.append(move[1][:-1])
-            else:
+        # read all the metadata about the game
+        gamedata = {}
+        while line[0] == '[':
+            gamedata[get_title(line)] = get_quoted(line)
+            line = f.readline()
+        # line is now at the blank line in between the metadata and the PGN
+
+        relevant_data = ("Site", "Event", "White", "Black")
+        vals = []
+        for key in relevant_data:
+            if key in gamedata:
+                vals.append(gamedata[key])
+        gamestr = ', '.join(vals)
+
+        # gamestr = ', '.join([gamedata[key] for key in ('Site', 'Event', 'White', 'Black')])
+        # print(f"\n{gamestr}")
+
+        curr_board = Board()
+
+        prevFEN = ''
+        currFEN = curr_board.getFEN()
+        visitBoard(currFEN, gamestr)
+
+        
+        piece_regex = re.compile('(([RBNQK]|[a-h])?[a-h]?[1-8]?x?[a-h][1-8](\+|#)?)|O-O(-O)?|[a-h][18]=[RBKQ]')
+        def is_move(movestr):
+            return re.fullmatch(piece_regex, movestr) is not None
+            '''
+                                 captures v                    v alternatively, castle
+            '(([RBNQK]|[a-h])?[a-h]?[1-8]?x?[a-h][1-8](\+|#)?)|O-O(-O)?|[a-h][18]=[RBKQ]'
+               ^piece  ^pawn   ^     ^      ^-target-^ ^check/mate      ^ alternatively promote
+                               |-----+--distinguishes rank or file if necessary
+            '''
+
+        # lines in this loop are of the form "n.moveA moveB m.moveC moveD ...\n" 
+        while len(line := f.readline()) > 1:
+            if not continue_writing:
                 continue
-       
-        for move in moves:
-            if len(move) >= 2:
-                curr_board.makemove(move)
 
-        # if the end of this line contains an 'end of game marker', i.e. 0-1, 1/2-1/2, 1-0
-        # then we have finished parsing the game, and we can continue looking for the next one
-        if line.split(' ')[-1] in ('0-1\n', '1/2-1/2\n', '1-0\n'):
-            curr_board = Board()
-            in_game = False
+            # split into tokens by '.'
+            # most tokens are of the form "moveX moveY k", 
+            # except the first is of the form "n" and the last is of the form "moveX moveY\n" 
+            temp = line.split('.') 
 
+            # preliminary going through the line and finding each of the moves in the line
+            moves = []
+            for tok in temp:
+                potential_moves = tok.split()
+                for move in potential_moves:
+                    if is_move(move):
+                        moves.append(move)
+
+
+            # now that we've isolated the algebraic notation of every move in this line
+            # run it on the board and adjust the data
+            for move in moves:
+                # print(f"{'white' if curr_board._turn == 'w' else 'black'} {move}")
+
+                # if there is some problem with the data or with my program (it's possible!)
+                # just drop the rest of this board -- there is enough data to go around
+                try:
+                    curr_board.makemove(move)
+                except:
+                    continue_writing = False
+                    break
+
+                prevFEN, currFEN = currFEN, curr_board.getFEN()
+                visitBoard(currFEN, gamestr, prevFEN)
+                #curr_board.prettyprint() 
+        
+    
     f.close()
 
+# parsePGN('raw-data/Bucharest2021.pgn')
+for filename in os.listdir(data_dir):
+    if filename.endswith('.pgn'):
+        print(filename)
+        parsePGN(os.path.join(data_dir, filename))
 
-parsePGN('raw-data/Bucharest2021.pgn')
+
+json.dump(output_data, outfile)
+outfile.close()
