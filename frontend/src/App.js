@@ -1,8 +1,11 @@
 import React from 'react'
 import ResizeListener from "./components/resizeListener/ResizeListener";
 import Board from "./components/board/Board";
+import Table from './components/history/Table'
 import Paper from '@material-ui/core/Paper';
 import {makeStyles, TextField} from "@material-ui/core";
+import IconButton from '@material-ui/core/IconButton';
+import RotateLeftIcon from '@material-ui/icons/RotateLeft';
 import axios from "axios";
 
 const useStyles = makeStyles(theme => ({
@@ -89,7 +92,13 @@ function App() {
                             return (
                                 <div>
                                     <Paper className={classes.paper} elevation={4}>
-                                        <div style={{width: width, margin: 5, paddingTop: 5}}>
+                                        <div style={{
+                                            width: width,
+                                            margin: 5,
+                                            paddingTop: 5,
+                                            display: 'flex',
+                                            flexDirection: 'row'
+                                        }}>
                                             <TextField
                                                 id="standard"
                                                 label="FEN Code"
@@ -98,8 +107,14 @@ function App() {
                                                 onChange={handleChange}
                                                 fullWidth
                                             />
+                                            <IconButton color="primary" aria-label="upload picture" component="span"
+                                                        onClick={() => setValue(default_fen)}>
+                                                <RotateLeftIcon/>
+                                            </IconButton>
                                         </div>
-                                        <Board width={remainder} height={remainder} fen={value} data={data} updateFen={setValue}/>
+                                        <Board width={remainder} height={remainder} fen={value} data={data}
+                                               updateFen={setValue}/>
+                                        <Table data={data} width={width}/>
                                     </Paper>
                                 </div>)
                         }}
