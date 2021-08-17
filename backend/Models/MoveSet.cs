@@ -32,16 +32,14 @@ namespace backend
 
                 foreach (MatchHistory.Move possibility in boardState.PossibleMoves)
                 {
-                    _MoveInfoMap.Add(possibility.Description, possibility);
-                    if (_MoveFrequencyMap.ContainsKey(possibility.Description))
-                    {
-                        _MoveFrequencyMap[possibility.Description] += 1;
-                    }
-                    else
+                    if (_MoveInfoMap.TryAdd(possibility.Description, possibility))
                     {
                         _MoveFrequencyMap.Add(possibility.Description, 1);
                     }
-                    
+                    else
+                    {
+                        _MoveFrequencyMap[possibility.Description] += 1;
+                    }
                 }
             }
 
@@ -52,7 +50,7 @@ namespace backend
         {
             var moveList = _MoveFrequencyMap.ToList();
             moveList.Sort(
-                (pair1, pair2) => pair1.Value.CompareTo(pair2.Value)
+                (pair1, pair2) => pair2.Value.CompareTo(pair1.Value)
             );
 
             return moveList.Select(
