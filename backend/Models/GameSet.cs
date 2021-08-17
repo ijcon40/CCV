@@ -8,8 +8,6 @@ namespace backend
         public class Match
         {
             public string Title { get; set; }
-            public string PlayerA { get; set; }
-            public string PlayerB { get; set; }
         }
 
         private List<Match> _Matches;
@@ -28,21 +26,12 @@ namespace backend
                 _Matches.Clear();
                 foreach (string match in boardState.RelatedMatches)
                 {
-                    var idxTitleEnd = match.IndexOf(']');
-                    var idxPlayerABegin = idxTitleEnd+2;
-                    var idxPlayerAEnd = match.LastIndexOf(" vs. ");
-                    var idxPlayerBBegin = idxPlayerAEnd+5;
-                    var idxPlayerBEnd = match.Length - 1;
-
-                    string title = match.Substring(1, idxTitleEnd-1);
-                    string playerA = match.Substring(idxPlayerABegin, idxPlayerAEnd-idxPlayerABegin);
-                    string playerB = match.Substring(idxPlayerBBegin, idxPlayerBEnd-idxPlayerBBegin+1);
-
-                    _Matches.Add(new Match {
-                        Title = title,
-                        PlayerA = playerA,
-                        PlayerB = playerB
-                    });
+                    if (match.Length > 0)
+                    {
+                        _Matches.Add(new Match {
+                            Title = match,
+                        });
+                    }
                 }
             }
             
