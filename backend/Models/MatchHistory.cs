@@ -28,19 +28,21 @@ namespace backend
             public BoardState(string fen, JObject jsonObj)
                 : this()
             {
+                var moves = jsonObj["moves"].ToObject<List<JObject>>();
                 var games = jsonObj["games"].ToObject<List<string>>();
-                var movesDict = jsonObj["moves"].ToObject<Dictionary<string, string>>();
 
                 FEN = fen;
                 RelatedMatches = games;
-                foreach (KeyValuePair<string, string> entry in movesDict)
+                foreach (JObject moveObj in moves)
                 {
-                    string startPos = entry.Value.Substring(0, 2);
-                    string endPos = entry.Value.Substring(2, 2);
+                    string uci = moveObj["uci"].ToObject<string>();
+                    string resultingFEN = moveObj["endState"].ToObject<string>();
+                    string startPos = uci.Substring(0, 2);
+                    string endPos = uci.Substring(2, 2);
 
                     PossibleMoves.Add(new Move {
-                        Description = entry.Value,
-                        ResultingFEN = entry.Key,
+                        Description = uci,
+                        ResultingFEN = resultingFEN,
                         Action = new Tuple<string, string>(startPos, endPos)
                     });
                 }
@@ -55,7 +57,7 @@ namespace backend
         public MatchHistory()
         {
             _RecordedStates = new Dictionary<string, BoardState>();
-            InitFromJSON("./data/tmp-data.json");
+            InitFromJSON("./data/history-formatted.json");
         }
 
         public bool GetBoardStateFromFEN(string fenCode, out BoardState retrievedState)
