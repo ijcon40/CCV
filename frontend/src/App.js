@@ -68,9 +68,9 @@ function App() {
 
     const urlParams = new URLSearchParams(window.location.search);
     const fen = urlParams.get('fen');
-    const default_fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
-    const [value, setValue] = React.useState(fen||default_fen);
-    const [stack, setStack] = React.useState([{move: '...', fen: fen||default_fen}])//push the piece position and corresponding fen here
+    const default_fen = reduceFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
+    const [value, setValue] = React.useState(fen || default_fen);
+    const [stack, setStack] = React.useState([{move: '...', fen: fen || default_fen}])//push the piece position and corresponding fen here
     const [data, setData] = React.useState(null)
 
     //gotta slice the fen to match
@@ -85,6 +85,12 @@ function App() {
 
     if (!data) {
         return null
+    }
+
+    const updateQuery = (fen) => {
+        const raw_params = new URLSearchParams()
+        raw_params.append('fen', fen)
+        history.push({search: raw_params.toString()})
     }
 
     const setFENandStack = (event) => {
@@ -103,9 +109,7 @@ function App() {
                     }
                 }
             )
-            const raw_params = new URLSearchParams()
-            raw_params.append('fen', event.target.value)
-            history.push({search: raw_params.toString()})
+            updateQuery(event.target.value)
             setValue(event.target.value);
             setStack([{move: '...', fen: event.target.value}])
         } catch (error) {
@@ -122,15 +126,14 @@ function App() {
     const popFromStack = (move) => {
         const index = stack.findIndex(a => a.move === move.move && a.fen === move.fen)
         if (index !== -1) {
+            updateQuery(move.fen)
             setStack([...stack.slice(0, index + 1)])
             setValue(move.fen)
         }
     }
 
     const setQuery = (value) => {
-        const raw_params = new URLSearchParams()
-        raw_params.append('fen', value)
-        history.push({search: raw_params.toString()})
+        updateQuery(value)
         setValue(value);
     }
 
@@ -174,7 +177,7 @@ function App() {
                                                 <Tooltip title={'Reset to starting position'} placement={'top'}>
                                                     <IconButton color="primary" aria-label="upload picture"
                                                                 component="span"
-                                                                onClick={() => setValue(default_fen)}>
+                                                                onClick={() => {setQuery(default_fen); setStack([{move: '...', fen: default_fen}])}}>
                                                         <RotateLeftIcon/>
                                                     </IconButton>
                                                 </Tooltip>
