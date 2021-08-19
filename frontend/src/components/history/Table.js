@@ -45,7 +45,7 @@ const Table = (props) => {
                         <ListSubheader className={classes.subheader}>{`This board state occurred in...`}</ListSubheader>
                         {relatedMatches.map((item, i) => (
                             <ListItem key={`item-${i}`}>
-                                <ListItemText primary={`${item.title}: ${item.playerA} vs ${item.playerB}` }/>
+                                <ListItemText primary={`${item.title}` }/>
                             </ListItem>
                         ))}
                     </ul>
